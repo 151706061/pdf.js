@@ -12,13 +12,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* globals PDFJS */
 
 'use strict';
+
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    define('pdfjs-web/text_layer_builder', ['exports', 'pdfjs-web/dom_events',
+        'pdfjs-web/pdfjs'],
+      factory);
+  } else if (typeof exports !== 'undefined') {
+    factory(exports, require('./dom_events.js'), require('./pdfjs.js'));
+  } else {
+    factory((root.pdfjsWebTextLayerBuilder = {}), root.pdfjsWebDOMEvents,
+      root.pdfjsWebPDFJS);
+  }
+}(this, function (exports, domEvents, pdfjsLib) {
 
 /**
  * @typedef {Object} TextLayerBuilderOptions
  * @property {HTMLDivElement} textLayerDiv - The text layer container.
+ * @property {EventBus} eventBus - The application event bus.
  * @property {number} pageIndex - The page index.
  * @property {PageViewport} viewport - The viewport of the text layer.
  * @property {PDFFindController} findController
@@ -34,6 +47,7 @@
 var TextLayerBuilder = (function TextLayerBuilderClosure() {
   function TextLayerBuilder(options) {
     this.textLayerDiv = options.textLayerDiv;
+    this.eventBus = options.eventBus || domEvents.getGlobalEventBus();
     this.renderingDone = false;
     this.divContentDone = false;
     this.pageIdx = options.pageIndex;
@@ -54,11 +68,10 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
       endOfContent.className = 'endOfContent';
       this.textLayerDiv.appendChild(endOfContent);
 
-      var event = document.createEvent('CustomEvent');
-      event.initCustomEvent('textlayerrendered', true, true, {
+      this.eventBus.dispatch('textlayerrendered', {
+        source: this,
         pageNumber: this.pageNumber
       });
-      this.textLayerDiv.dispatchEvent(event);
     },
 
     /**
@@ -78,7 +91,7 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
 
       this.textDivs = [];
       var textLayerFrag = document.createDocumentFragment();
-      this.textLayerRenderTask = PDFJS.renderTextLayer({
+      this.textLayerRenderTask = pdfjsLib.renderTextLayer({
         textContent: this.textContent,
         container: textLayerFrag,
         viewport: this.viewport,
@@ -103,7 +116,8 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
       this.divContentDone = true;
     },
 
-    convertMatches: function TextLayerBuilder_convertMatches(matches) {
+    convertMatches: function TextLayerBuilder_convertMatches(matches,
+                                                             matchesLength) {
       var i = 0;
       var iIndex = 0;
       var bidiTexts = this.textContent.items;
@@ -111,7 +125,9 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
       var queryLen = (this.findController === null ?
                       0 : this.findController.state.query.length);
       var ret = [];
-
+      if (!matches) {
+        return ret;
+      }
       for (var m = 0, len = matches.length; m < len; m++) {
         // Calculate the start position.
         var matchIdx = matches[m];
@@ -134,7 +150,11 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
         };
 
         // Calculate the end position.
-        matchIdx += queryLen;
+        if (matchesLength) { // multiterm search
+          matchIdx += matchesLength[m];
+        } else { // phrase search
+          matchIdx += queryLen;
+        }
 
         // Somewhat the same array as above, but use > instead of >= to get
         // the end position right.
@@ -212,7 +232,7 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
 
         if (this.findController) {
           this.findController.updateMatchPosition(pageIdx, i, textDivs,
-                                                  begin.divIdx, end.divIdx);
+                                                  begin.divIdx);
         }
 
         // Match inside new div.
@@ -276,8 +296,14 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
 
       // Convert the matches on the page controller into the match format
       // used for the textLayer.
-      this.matches = this.convertMatches(this.findController === null ?
-        [] : (this.findController.pageMatches[this.pageIdx] || []));
+      var pageMatches, pageMatchesLength;
+      if (this.findController !== null) {
+        pageMatches = this.findController.pageMatches[this.pageIdx] || null;
+        pageMatchesLength = (this.findController.pageMatchesLength) ?
+          this.findController.pageMatchesLength[this.pageIdx] || null : null;
+      }
+
+      this.matches = this.convertMatches(pageMatches, pageMatchesLength);
       this.renderMatches(this.matches);
     },
 
@@ -346,3 +372,7 @@ DefaultTextLayerFactory.prototype = {
     });
   }
 };
+
+exports.TextLayerBuilder = TextLayerBuilder;
+exports.DefaultTextLayerFactory = DefaultTextLayerFactory;
+}));
