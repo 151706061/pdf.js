@@ -1261,6 +1261,19 @@ describe("api", function () {
       await loadingTask.destroy();
     });
 
+    it("gets destinations, from /Names (NameTree) respectively /Dests dictionary", async function () {
+      const loadingTask = getDocument(buildGetDocumentParams("issue19474.pdf"));
+      const pdfDoc = await loadingTask.promise;
+      const destinations = await pdfDoc.getDestinations();
+      expect(destinations).toEqual({
+        A: [{ num: 1, gen: 0 }, { name: "Fit" }],
+        B: [{ num: 4, gen: 0 }, { name: "Fit" }],
+        C: [{ num: 5, gen: 0 }, { name: "Fit" }],
+      });
+
+      await loadingTask.destroy();
+    });
+
     it("gets a destination, from /Names (NameTree) dictionary", async function () {
       const loadingTask = getDocument(buildGetDocumentParams("issue6204.pdf"));
       const pdfDoc = await loadingTask.promise;
@@ -1316,6 +1329,22 @@ describe("api", function () {
         728.504,
         null,
       ]);
+
+      await loadingTask.destroy();
+    });
+
+    it("gets a destination, from /Names (NameTree) respectively /Dests dictionary", async function () {
+      const loadingTask = getDocument(buildGetDocumentParams("issue19474.pdf"));
+      const pdfDoc = await loadingTask.promise;
+
+      const destA = await pdfDoc.getDestination("A");
+      expect(destA).toEqual([{ num: 1, gen: 0 }, { name: "Fit" }]);
+
+      const destB = await pdfDoc.getDestination("B");
+      expect(destB).toEqual([{ num: 4, gen: 0 }, { name: "Fit" }]);
+
+      const destC = await pdfDoc.getDestination("C");
+      expect(destC).toEqual([{ num: 5, gen: 0 }, { name: "Fit" }]);
 
       await loadingTask.destroy();
     });
@@ -4081,34 +4110,28 @@ Caron Broadcasting, Inc., an Ohio corporation (“Lessee”).`)
           })
         );
 
-        // eslint-disable-next-line arrow-body-style
-        const result1 = loadingTask1.promise.then(pdfDoc => {
-          // eslint-disable-next-line arrow-body-style
-          return pdfDoc.getPage(1).then(pdfPage => {
-            return pdfPage.getOperatorList().then(opList => {
-              expect(opList.fnArray.length).toBeGreaterThan(100);
-              expect(opList.argsArray.length).toBeGreaterThan(100);
-              expect(opList.lastChunk).toEqual(true);
-              expect(opList.separateAnnots).toEqual(null);
+        const result1 = loadingTask1.promise.then(async pdfDoc => {
+          const pdfPage = await pdfDoc.getPage(1);
+          const opList = await pdfPage.getOperatorList();
 
-              return loadingTask1.destroy();
-            });
-          });
+          expect(opList.fnArray.length).toBeGreaterThan(100);
+          expect(opList.argsArray.length).toBeGreaterThan(100);
+          expect(opList.lastChunk).toEqual(true);
+          expect(opList.separateAnnots).toEqual(null);
+
+          await loadingTask1.destroy();
         });
 
-        // eslint-disable-next-line arrow-body-style
-        const result2 = loadingTask2.promise.then(pdfDoc => {
-          // eslint-disable-next-line arrow-body-style
-          return pdfDoc.getPage(1).then(pdfPage => {
-            return pdfPage.getOperatorList().then(opList => {
-              expect(opList.fnArray.length).toEqual(0);
-              expect(opList.argsArray.length).toEqual(0);
-              expect(opList.lastChunk).toEqual(true);
-              expect(opList.separateAnnots).toEqual(null);
+        const result2 = loadingTask2.promise.then(async pdfDoc => {
+          const pdfPage = await pdfDoc.getPage(1);
+          const opList = await pdfPage.getOperatorList();
 
-              return loadingTask2.destroy();
-            });
-          });
+          expect(opList.fnArray.length).toEqual(0);
+          expect(opList.argsArray.length).toEqual(0);
+          expect(opList.lastChunk).toEqual(true);
+          expect(opList.separateAnnots).toEqual(null);
+
+          await loadingTask2.destroy();
         });
 
         await Promise.all([result1, result2]);
