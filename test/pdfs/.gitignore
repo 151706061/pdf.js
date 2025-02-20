@@ -533,6 +533,7 @@
 !transparent.pdf
 !issue19326.pdf
 !issue13931.pdf
+!issue19474.pdf
 !xobject-image.pdf
 !issue15441.pdf
 !issue6605.pdf
@@ -559,6 +560,8 @@
 !poppler-85140-0.pdf
 !issue15012.pdf
 !issue19176.pdf
+!bug1947248_text.pdf
+!bug1947248_forms.pdf
 !issue15150.pdf
 !poppler-395-0-fuzzed.pdf
 !issue14165.pdf
@@ -701,3 +704,4 @@
 !issue19360.pdf
 !bug1019475_1.pdf
 !bug1019475_2.pdf
+!issue19505.pdf
